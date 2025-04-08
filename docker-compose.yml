@@ -1,0 +1,32 @@
+services:
+  # transcriber-server:
+  #   container_name: transcriber-server
+  #   build: .
+  #   environment:
+  #     - VOICER_URL=ws://localhost:8002/ws
+  #   ports:
+  #     - "80:80"
+  #   networks:
+  #     - main
+  #   restart: unless-stopped
+  redis:
+    image: "redis:alpine"
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+  # ngrok:
+  #   image: wernight/ngrok
+  #   volumes:
+  #     - ./ngrok.yml:/home/ngrok/.ngrok2/ngrok.yml
+  #   ports:
+  #     - "4040:4040"
+  #   command: ["ngrok", "http", "aidols-server:80"]
+
+networks:
+  main:
+    driver: bridge
+
+volumes:
+  db:
+    driver: local

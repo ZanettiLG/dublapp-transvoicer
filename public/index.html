@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NodeJS ASR</title>
+</head>
+
+<body>
+    <h1>NodeJS ASR</h1>
+    <button id="start">Upload</button>
+    <div id="audio-list"></div>
+    <video id="video-player" controls autoplay width="256px" height="256px"></video>
+    <script>
+        const crypto = window.crypto;
+        let userid = null;
+
+        function fixAudio(audioBuffer) {
+            const length = Object.keys(audioBuffer).length;
+            var newBuffer = new Uint8Array(length);
+            for (let i = 0; i < length; i++) {
+                newBuffer[i] = audioBuffer[i];
+            }
+            return newBuffer.buffer.slice(newBuffer.byteOffset, newBuffer.byteLength + newBuffer.byteOffset);
+        }
+
+        async function start() {
+            const socket = new WebSocket("ws://localhost:80/ws");
+            let mediaRecorder;
+            const videoPlayer = document.getElementById('video-player');
+            const audioList = document.getElementById('audio-list');
+            const startButton = document.getElementById("start");
+            //const transcriptionEl = document.getElementById("transcription").querySelector("span");
+
+            let elem = document.createElement("input");
+            elem.type = "file";
+            elem.oninput = (event) => {
+                // Make sure we have files to use
+                let files = event.target.files;
+                if (!files) return;
+
+                // Create a blob that we can use as an src for our audio element
+                const urlObj = URL.createObjectURL(files[0]);
+                const mimeType = files[0].type;
+
+                const reader = new FileReader();
+                reader.addEventListener("load", async (e) => {
+                    const arrayBuffer = e.target?.result; // Get the ArrayBuffer
+                    if (!arrayBuffer) return;
+
+                    const ui8array = new Int8Array(arrayBuffer);
+                    const message = {
+                        userid,
+                        path: "video-stream",
+                        id: crypto.randomUUID(),
+                        data: {
+                            buffer: Array.from(ui8array),
+                            language: "en",
+                            translate: "pt"
+                        },
+                    }
+                    console.log(message)
+                    socket.send(JSON.stringify(message));
+                });
+                reader.readAsArrayBuffer(files[0]);
+
+                // Reset files
+                elem.value = "";
+            };
+
+            startButton.addEventListener("click", async () => {
+                elem.click();
+            });
+
+            socket.onmessage = (event) => {
+                console.log(event.data);
+                const message = JSON.parse(event.data);
+
+                if (message.event === "auth") {
+                    userid = message.userid;
+                }
+
+                if (message.event === "synthesization") {
+                    console.log(message.data.buffer);
+                    const videoData = fixAudio(message.data.buffer);
+                    console.log(videoData);
+                    const videoBlob = new Blob([videoData], { type: "video/mp4" });
+                    const urlObj = URL.createObjectURL(videoBlob);
+                    videoPlayer.src = urlObj;
+                    /* for (const audio of message.audios) {
+                        console.log(audio.buffer);
+                        const audioData = fixAudio(audio.buffer);
+                        console.log(audioData);
+                        const audioBlob = new Blob([audioData], { type: "audio/wav" });
+                        const urlObj = URL.createObjectURL(audioBlob);
+                        const audioPlayer = document.createElement("audio");
+                        audioPlayer.controls = true;
+                        audioPlayer.autoplay = true;
+                        audioPlayer.src = urlObj;
+                        audioList.appendChild(audioPlayer);
+                    } */
+                }
+            };
+
+            startButton.disabled = false;
+        }
+
+        start()
+    </script>
+</body>
+
+</html>

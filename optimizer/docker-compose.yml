@@ -1,0 +1,18 @@
+services:
+  onnx_optimizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    container_name: onnx_optimizer
+    ports:
+      - "5433:5432"
+    volumes:
+      - ../models/:/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
